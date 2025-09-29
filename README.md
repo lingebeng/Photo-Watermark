@@ -35,3 +35,35 @@ Read EXIF information of all files in that path, extract shooting time informati
 Users can set font size, color, and position on the image (e.g., top-left, center, bottom-right).
 
 The program draws text watermarks on images and saves them as new image files in a new directory named `<original_directory>_watermark` as a subdirectory of the original directory.
+
+### Introduction
+
+```text
+Required Argument
+IMAGE_DIRECTORY
+The directory path containing images to watermark.
+
+Optional Arguments
+--font-size, -s
+Font size for watermark (default: 80)
+
+--color, -c
+Text color for watermark (default: red)
+
+--position, -p
+Watermark position on the image
+Available values: top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, bottom-right
+Default: bottom-right
+
+--use-file-date
+Use file modification date as watermark when EXIF date is not available
+
+--default-date
+Use the specified default date (format: YYYY-MM-DD) when neither EXIF nor file date is available
+```
+
+### How to run ?
+
+```bash
+uv run dev00.py test --font-size 100 --color gray --position center 
+```

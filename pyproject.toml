@@ -1,5 +1,5 @@
 [project]
-name = "github"
+name = "Photo-Watermark"
 version = "0.1.0"
 description = "This project demonstrates how to perform various operations for adding watermarks to photos."
 readme = "README.md"
