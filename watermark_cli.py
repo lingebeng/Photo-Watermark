@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Photo Watermark Tool - Add date watermarks to photos based on EXIF data
 """

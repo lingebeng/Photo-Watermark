@@ -65,5 +65,5 @@ Use the specified default date (format: YYYY-MM-DD) when neither EXIF nor file d
 ### How to run ?
 
 ```bash
-uv run dev00.py test --font-size 100 --color gray --position center 
+uv run watermark_cli.py test --font-size 100 --color gray --position center 
 ```

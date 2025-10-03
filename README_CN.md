@@ -65,5 +65,5 @@ IMAGE_DIRECTORY
 ### 命令行运行
 
 ```bash
-uv run dev00.py test --font-size 100 --color gray --position center 
+uv run watermark_cli.py test --font-size 100 --color gray --position center 
 ```
