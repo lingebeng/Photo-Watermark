@@ -25,7 +25,6 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 from streamlit_drawable_canvas import st_canvas
 
-
 # ---------------------------- Configuration ---------------------------- #
 APP_STORAGE_DIR = Path.home() / ".photo_watermark_app"
 TEMPLATE_FILE = APP_STORAGE_DIR / "templates.json"
@@ -68,9 +67,7 @@ class TextStyle:
 class ImageWatermarkConfig:
     enabled: bool = False
     image_b64: Optional[str] = None  # Stored as base64 png for persistence
-    scale_percent: int = (
-        50  # relative scaling to original watermark image (used when scale_mode='percent')
-    )
+    scale_percent: int = 50  # relative scaling to original watermark image (used when scale_mode='percent')
     opacity: int = 100  # 0-100
     scale_mode: str = "percent"  # 'percent' | 'width'
     width_px: int = 200  # used when scale_mode='width'
@@ -411,6 +408,24 @@ def composite_preview(base: Image.Image, *layers: Image.Image) -> Image.Image:
     return out
 
 
+def _get_thumbnail(data: bytes, height: int = 100) -> Image.Image:
+    """Return a thumbnail with fixed height (default 100px) and proportional width.
+
+    宽度自适应保持比例；使用 LANCZOS。若图片加载失败则返回占位图。若原图高度为 0 则直接返回。
+    """
+    try:
+        img = load_image_bytes(data)
+        w, h = img.size
+        if w <= 0 or h <= 0:
+            return img
+        target_h = max(1, height)
+        ratio = target_h / h
+        target_w = max(1, int(w * ratio))
+        return img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+    except Exception:
+        return Image.new("RGBA", (height, height), (200, 200, 200, 255))
+
+
 def compute_composed_watermark(
     text_cfg: TextWatermarkConfig, image_cfg: ImageWatermarkConfig
 ) -> Optional[Image.Image]:
@@ -674,7 +689,7 @@ def sidebar_import_panel():
             to_delete = []
             for i, name in enumerate(names):
                 cols = st.columns([6, 1])
-                cols[0].markdown(f"`{i+1}` {name}")
+                cols[0].markdown(f"`{i + 1}` {name}")
                 if cols[1].button("🗑", key=f"del_img_{i}"):
                     to_delete.append(i)
             if to_delete:
@@ -1316,11 +1331,45 @@ def export_all_images_to_zip_bytes() -> Optional[bytes]:
 
 
 def main_layout():
-    st.title("📷 Photo Watermark 2")
+    st.title("📷 Photo Watermark")
     st.caption("批量水印工具 / Batch Watermark Tool (Streamlit)")
     if not st.session_state.images:
         st.info("请在左侧导入图片 / Use the sidebar to import images")
         return
+    # Thumbnail gallery of imported images
+    with st.expander("已导入图片 / Imported Images", expanded=True):
+        imgs = st.session_state.images
+        if imgs:
+            # Arrange in rows of 6 thumbnails
+            per_row = 6
+            for row_start in range(0, len(imgs), per_row):
+                row_imgs = imgs[row_start : row_start + per_row]
+                cols = st.columns(len(row_imgs))
+                for c, info in zip(cols, row_imgs):
+                    name = info["name"]
+                    thumb = _get_thumbnail(info["data"], 100)
+                    c.image(thumb, use_container_width=True)
+                    # Highlight selected
+                    is_sel = (
+                        st.session_state.images[st.session_state.selected_index]["name"]
+                        == name
+                    )
+                    style = "✅" if is_sel else "选择"
+                    if c.button(style, key=f"thumb_select_{row_start}_{name}"):
+                        # update selected index
+                        for i_global, item in enumerate(imgs):
+                            if item["name"] == name:
+                                st.session_state.selected_index = i_global
+                                # Force rebuild on next run by resetting sig
+                                st.session_state._wm_sig = None
+                                if hasattr(st, "rerun"):
+                                    st.rerun()
+                                else:
+                                    getattr(st, "experimental_rerun", lambda: None)()
+                        # break not needed, rerun triggered
+                    c.caption(name)
+        else:
+            st.write("(无)")
     # current image
     img_info = st.session_state.images[st.session_state.selected_index]
     base = load_image_bytes(img_info["data"])  # RGBA
@@ -1358,6 +1407,9 @@ def main_layout():
         str(st.session_state.image_cfg.opacity),
         str(st.session_state.image_cfg.image_b64)[:32],
         str(st.session_state.rotation),
+        # Include image identity and canvas dims so switching images forces rebuild
+        f"img_idx={st.session_state.selected_index}",
+        f"base={W}x{H}",
     ]
     current_sig = hash("|".join(sig_parts))
     if "_wm_sig" not in st.session_state:
@@ -1577,7 +1629,7 @@ def main_layout():
             st.download_button(
                 "下载当前预览 / Download Current",
                 data=single_bytes_val,
-                file_name=f"{Path(img_info['name']).stem}_watermarked.{('jpg' if fmt_single=='JPEG' else 'png')}",
+                file_name=f"{Path(img_info['name']).stem}_watermarked.{('jpg' if fmt_single == 'JPEG' else 'png')}",
                 mime=("image/jpeg" if fmt_single == "JPEG" else "image/png"),
                 help="通过浏览器下载，保存位置由浏览器设置决定。",
             )
