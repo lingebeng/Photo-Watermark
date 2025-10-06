@@ -16,6 +16,8 @@ from __future__ import annotations
 import base64
 import io
 import json
+import os
+import sys
 import zipfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -25,8 +27,44 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 from streamlit_drawable_canvas import st_canvas
 
-# ---------------------------- Configuration ---------------------------- #
-APP_STORAGE_DIR = Path.home() / ".photo_watermark_app"
+
+def get_safe_storage_dir() -> Path:
+    """
+    返回一个始终可写的存储目录：
+    1. exe 所在目录（最稳定）
+    2. 当前工作目录（兜底）
+    3. 用户主目录（如果前两步失败）
+    4. 系统临时目录（最终兜底）
+    """
+    # 1️⃣ exe 所在目录
+    if getattr(sys, "_MEIPASS", None):
+        base_dir = Path(sys.executable).resolve().parent
+    else:
+        base_dir = Path(__file__).resolve().parent
+    candidates = [
+        base_dir / "photo_watermark_app",
+        Path.cwd() / "photo_watermark_app",
+        Path.home() / ".photo_watermark_app",
+        Path(os.getenv("TEMP", "/tmp")) / "photo_watermark_app",
+    ]
+
+    for path in candidates:
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            print(f"[INFO] Using storage directory: {path}")
+            return path
+        except Exception as e:
+            print(f"[WARN] Cannot create {path}: {e}")
+
+    # 极端兜底
+    fallback = Path(os.getenv("TEMP", "/tmp")) / "photo_watermark_fallback"
+    fallback.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Using fallback storage directory: {fallback}")
+    return fallback
+
+
+# ---------------------------- 使用 ---------------------------- #
+APP_STORAGE_DIR = get_safe_storage_dir()
 TEMPLATE_FILE = APP_STORAGE_DIR / "templates.json"
 LAST_STATE_FILE = APP_STORAGE_DIR / "last_state.json"
 SUPPORTED_IMPORT_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
@@ -44,7 +82,13 @@ DEFAULT_FONT_CANDIDATES = [
 
 
 def ensure_storage_dir() -> None:
-    APP_STORAGE_DIR.mkdir(exist_ok=True, parents=True)
+    try:
+        print(f"[DEBUG] Trying to create {APP_STORAGE_DIR} ...")
+        APP_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+        print("[DEBUG] Directory created successfully")
+    except Exception as e:
+        print(f"[ERROR] Failed to create directory {APP_STORAGE_DIR}: {e}")
+        raise
 
 
 # ---------------------------- Data Models ---------------------------- #
