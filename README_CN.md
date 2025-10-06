@@ -122,6 +122,8 @@ streamlit run watermark_app.py
 
 #### Windows Pyinstaller 打包说明
 
+> 参考: https://zhuanlan.zhihu.com/p/695939376
+
 ```bash
 # 允许本地脚本运行
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
